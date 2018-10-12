@@ -213,9 +213,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UIViewControllerRestorati
         
         DAU().sendPingToServer()
         
-        if Preferences.General.isFirstLaunch.value {
+        let isFirstLaunch = Preferences.General.isFirstLaunch.value
+        Preferences.General.isFirstLaunch.value = false
+        
+        if isFirstLaunch {
             FavoritesHelper.addDefaultFavorites()
-            Preferences.General.isFirstLaunch.value = false
+        }
+        
+        if let urp = UserReferralProgram() {
+            if isFirstLaunch {
+                urp.referralLookup { url in
+                    guard let url = url else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: {
+                        try? self.browserViewController.openURLInNewTab(url.asURL(), isPrivileged: false)
+                    })
+                }
+            } else {
+                urp.getCustomHeaders()
+                urp.pingIfEnoughTimePassed()
+            }
+        } else {
+            log.error("Failed to initialize user referral program")
+            UrpLog.log("Failed to initialize user referral program")
         }
 
         UINavigationBar.appearance().tintColor = BraveUX.BraveOrange
